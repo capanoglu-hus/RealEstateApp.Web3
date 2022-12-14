@@ -9,12 +9,12 @@ const tokens = (n) => {
 
 describe('Escrow', () => {
 
-    let buyer, seller, inspector, lender, realEstate, escrow //alıcı ve staıcı hesaplarını oluşturmak için 
-
+    let buyer, seller, inspector, lender  //alıcı ve staıcı hesaplarını oluşturmak için 
+    let realEstate, escrow //kont. adları 
 
     beforeEach(async () => {
-
         [buyer, seller, inspector, lender] = await ethers.getSigners() // ether hesaplarını olacak imzalayanlar  
+
         //deploy realestate 
         const RealEstate = await ethers.getContractFactory('RealEstate')
         realEstate = await RealEstate.deploy()
@@ -22,8 +22,8 @@ describe('Escrow', () => {
         // nft basmak için 
         let transaction = await realEstate.connect(seller).mint("https://ipfs.io/ipfs/QmTudSYeM7mz3PkYEWXWqPjomRPHogcMFSq7XAvsvsgAPS")
         await transaction.wait()
-        // satıcı adına nft basmak için 
 
+        //deploy escrow -- özellikleriyle beraber 
         const Escrow = await ethers.getContractFactory('Escrow')
         escrow = await Escrow.deploy(
             realEstate.address,
@@ -44,25 +44,23 @@ describe('Escrow', () => {
 
 
     describe('Deployment', () => {
-
+        //kont. özelliklerinin adresinin eşit olması 
         it('Returns NFT address', async () => {
             const result = await escrow.nftAddress()
             expect(result).to.be.equal(realEstate.address)
         })
 
-        // it('Returns seller', async () => {
-        //     const result = await escrow.seller()
-        //     expect(result).to.be.equal(seller.address)
+        it('Returns seller', async () => {
+            const result = await escrow.seller()
+            expect(result).to.be.equal(seller.address)
+        })
 
-        // })
+        it('Returns inspector', async () => {
+            const result = await escrow.inspector()
+            expect(result).to.be.equal(inspector.address)
+        })
 
-        // it('Returns inspector', async () => {
-        //     const result = await escrow.inspector()
-        //     expect(result).to.be.equal(inspector.address)
-
-        // })
-
-        it('returns lender', async () => {
+        it('Returns lender', async () => {
             const result = await escrow.lender()
             expect(result).to.be.equal(lender.address)
 
@@ -72,39 +70,39 @@ describe('Escrow', () => {
     })
 
     describe('listing', () => {
+        //nftlerin listelenmesi
 
         it('updates as listed', async () => {
             const result = await escrow.isListed(1)
             expect(result).to.be.equal(true) // listeleme güncellemesini test ediyor
         })
 
-        // //alıcı için 
-        // it('returns buyer', async () => {
-        //     const result = await escrow.buyer(1)
-        //     except(result).to.be.equal(buyer.address)
-        // })
+        //alıcı için 
+        it('returns buyer', async () => {
+            const result = await escrow.buyer(1)
+            expect(result).to.be.equal(buyer.address)
+        })
 
         //satın alma fiyatı 
-        it('returns purchase price', async () => {
+        it('Returns purchase price', async () => {
             const result = await escrow.purchasePrice(1)
             expect(result).to.be.equal(tokens(10))
         })
 
         //satın alma fiyatı 
-        it('returns purchase priceescrow amount', async () => {
+        it('returns escrow amount', async () => {
             const result = await escrow.escrowAmount(1)
             expect(result).to.be.equal(tokens(5))
         })
 
         //gönderilen adreslemülkiyet için emanette bulunan adresin aynı olup olmadıgı kont ediyor
-        it('Updates ownership', async () => {
+        it('updates ownership', async () => {
             expect(await realEstate.ownerOf(1)).to.be.equal(escrow.address)
         })
-
-
     })
 
-    describe('Desposits', () => {
+    describe('Deposits', () => {
+        // cüzdandaki degerin emanet degerinden büyük olmasını test ediyor 
         beforeEach(async () => {
             const transaction = await escrow.connect(buyer).depositEarnest(1, { value: tokens(5) })
             await transaction.wait()
@@ -118,21 +116,21 @@ describe('Escrow', () => {
         })
     })
 
-    describe('Inspector', () => {
-
+    describe('Inspection', () => {
+        // müfettiş durumunu gösterme 
         beforeEach(async () => {
             const transaction = await escrow.connect(inspector).updateInspectionStatus(1, true)
             await transaction.wait()
         })
 
         it('updates inspector', async () => {
-
             const result = await escrow.inspectionPassed(1)
             expect(result).to.be.equal(true)
         })
     })
 
     describe('Approval', () => {
+        // karşılıklı onaylama durumu 
         beforeEach(async () => {
             let transaction = await escrow.connect(buyer).approveSale(1)
             await transaction.wait()
@@ -152,6 +150,6 @@ describe('Escrow', () => {
         })
     })
 
-   
+
 
 })
