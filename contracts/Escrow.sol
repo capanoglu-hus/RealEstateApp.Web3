@@ -2,6 +2,7 @@
 pragma solidity ^0.8.0;
 
 interface IERC721 {
+    // nft yi kulanmaya yarıyor
     function transferFrom(
         address _from,
         address _to,
@@ -15,7 +16,23 @@ contract Escrow {
     address payable public seller; // satıcının adresi payable ether gön. almak için
     address public lender; // borç veren kiracı
 
-    
+    modifier onlyBuyer(uint256 _nftID) {
+        //buyer nftidsi gönderen ile aynı değilse hata verir
+        require(msg.sender == buyer[_nftID], "Only buyer can call this method");
+        _;
+    }
+
+    modifier onlySeller() {
+        //seller adresi  gönderen ile aynı değilse hata verir
+        require(msg.sender == seller, "Only seller can call this method");
+        _;
+    }
+
+    modifier onlyInspector() {
+         //inspector  adresi  gönderen ile aynı değilse hata verir
+        require(msg.sender == inspector, "Only inspector can call this method");
+        _;
+    }
 
     mapping(uint256 => bool) public isListed; //nftlerin listelenip listelenmediğini kont ediyor
     mapping(uint256 => uint256) public purchasePrice; // satın alma fiyatı
@@ -24,25 +41,27 @@ contract Escrow {
     mapping(uint256 => bool) public inspectionPassed; //müfetişten geçip geçmemesi
     mapping(uint256 => mapping(address => bool)) public approval; // onay almak için
 
-    constructor(
-        address _nftaddress,
+    constructor( //yapılandırıcı
+        address _nftAddress,
+        address payable _seller,
         address _inspector,
-        address payable  _seller,
         address _lender
     ) {
-        nftAddress = _nftaddress;
-        inspector = _inspector;
+        nftAddress = _nftAddress;
         seller = _seller;
+        inspector = _inspector;
         lender = _lender;
     }
 
     // mülkiyeti nft olarak bu kont. adresine gönderiyor
+
     function list(
         uint256 _nftID,
         address _buyer,
         uint256 _purchasePrice,
         uint256 _escrowAmount
-    ) public payable  {
+    ) public payable onlySeller {
+        // transferi nft olarak göndermesi
         IERC721(nftAddress).transferFrom(msg.sender, address(this), _nftID);
 
         isListed[_nftID] = true; //nftid ile listelenmeyi dogruluyor
@@ -51,42 +70,49 @@ contract Escrow {
         buyer[_nftID] = _buyer;
     }
 
-    // yalnıza alıcılar için geçerli
-    function depositEarnest(uint256 _nftID) public payable  {
+ 
+    // yalnızca alıcılar için geçerli
+    function depositEarnest(uint256 _nftID) public payable onlyBuyer(_nftID) {
         require(msg.value >= escrowAmount[_nftID]); // emanet bedelinden fazla veya eşit deilse hata verir
     }
 
     // evin müfettişten geçip geçmemesi
-    function updateInspectionStatus(uint256 _nftID, bool _passsed)
-        public
-       
-    {
-        inspectionPassed[_nftID] = _passsed;
+    function updateInspectionStatus(uint256 _nftID, bool _passsed) public onlyInspector{
+        inspectionPassed[_nftID] = _passsed; 
     }
 
+    // Satışı onaylama 
     function approveSale(uint256 _nftID) public {
         approval[_nftID][msg.sender] = true;
     }
 
     // satış için
     function finalizeSale(uint256 _nftID) public {
-        require(inspectionPassed[_nftID]);
-        require(approval[_nftID][buyer[_nftID]]);
+        require(inspectionPassed[_nftID]); //mufettişten geçmesi lazım 
+        require(approval[_nftID][buyer[_nftID]]); 
         require(approval[_nftID][seller]);
         require(approval[_nftID][lender]);
         require(address(this).balance >= purchasePrice[_nftID]);
 
-        isListed[_nftID] = false;
+        isListed[_nftID] = false; // listelemede olmuyacak 
 
+        //bu kont. adresi degerinin satıcı tarafından belirleme 
         (bool success, ) = payable(seller).call{value: address(this).balance}(
             " "
         );
         require(success);
-
+        // nft transfer için parametre
         IERC721(nftAddress).transferFrom(address(this), buyer[_nftID], _nftID);
     }
 
-    
+   // satış iptali 
+    function cancelSale(uint256 _nftID) public {
+        if (inspectionPassed[_nftID] == false) {
+            payable(buyer[_nftID]).transfer(address(this).balance);
+        } else {
+            payable(seller).transfer(address(this).balance);
+        }
+    }
 
     receive() external payable {
         // kont. dışından ödeme yapabilir
