@@ -16,7 +16,7 @@
 
   ● Configurator use
 
-  ● NFT Listing function
+  ● NFT listing function
 
   ● Deposit function (buyer's wallet check)
 
