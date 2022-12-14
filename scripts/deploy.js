@@ -13,7 +13,7 @@ async function main() {
     const realEstate = await RealEstate.deploy()
     await realEstate.deployed()
 
-    console.log('deployed real estate : ${realEstate.address}')
+    console.log(`Deployed Real Estate Contract at: ${realEstate.address}`)
     console.log('minting 3 nft ')
 
     // nft basmak için 
@@ -33,7 +33,7 @@ async function main() {
 
     await escrow.deployed()
 
-    console.log('deployed real estate : ${escrow.address}')
+    console.log(`Deployed Escrow Contract at: ${escrow.address}`)
     console.log('listing 3 prooertiess .. \n ')
 
     for (let i = 0; i < 3; i++) {
